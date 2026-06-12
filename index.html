@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Notities</title>
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Notities">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#E4EEF7;--surface:#FFFFFF;--border:#A9C9E3;--text:#142433;
+    --muted:#4F7395;--accent:#1F5E8C;--accent-light:#C9E2F5;
+    --danger:#A6362A;--radius:10px;--font:'Inter',system-ui,sans-serif;
+  }
+  body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:16px;line-height:1.5;min-height:100vh}
+  .wrap{max-width:520px;margin:0 auto;padding:1.25rem 1rem 4rem}
+  .logo{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.25rem}
+  .page-title{font-size:24px;font-weight:600;margin-bottom:1rem}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem}
+  label{display:block;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem;margin-top:.7rem}
+  label:first-child{margin-top:0}
+  input,textarea,select{display:block;width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:15px;font-family:var(--font);outline:none}
+  textarea{resize:vertical;min-height:70px}
+  input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+  .btn{display:block;width:100%;padding:11px;border-radius:8px;font-size:15px;font-weight:600;font-family:var(--font);cursor:pointer;text-align:center;border:none;margin-top:.7rem}
+  .btn:active{transform:scale(.98)}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text)}
+  .btn-sm{padding:5px 10px;font-size:13px;width:auto;display:inline-block;margin-top:0}
+  .search-row{display:flex;gap:8px;margin-bottom:1rem}
+  .search-row input{margin:0}
+  .search-row select{margin:0;width:auto;flex-shrink:0}
+  .note{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.85rem 1rem;margin-bottom:.6rem}
+  .note-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px}
+  .note-date{font-size:12px;color:var(--muted)}
+  .note-cat{display:inline-block;font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-light);border-radius:20px;padding:2px 9px;margin-left:6px}
+  .note-text{font-size:15px;white-space:pre-wrap;word-break:break-word}
+  .note-actions{display:flex;gap:6px;margin-top:8px}
+  .empty{text-align:center;padding:3rem 0;color:var(--muted);font-size:15px}
+  .loading{text-align:center;padding:2rem;color:var(--muted);font-size:14px}
+  .error{font-size:13px;color:var(--danger);margin-top:.5rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">Notities</div>
+  <div class="page-title">Mijn notities</div>
+
+  <div class="card">
+    <label>Nieuwe notitie</label>
+    <textarea id="n-tekst" placeholder="Schrijf hier je notitie..."></textarea>
+    <label>Categorie (optioneel)</label>
+    <input type="text" id="n-categorie" placeholder="bijv. Werk, Privé, Idee...">
+    <div id="n-err" class="error" style="display:none"></div>
+    <button class="btn btn-primary" onclick="addNote()">Opslaan</button>
+  </div>
+
+  <div class="search-row">
+    <input type="text" id="zoek" placeholder="Zoeken..." oninput="renderNotes()">
+    <select id="filter-cat" onchange="renderNotes()"><option value="">Alle categorieën</option></select>
+  </div>
+
+  <div id="notes-list"><div class="loading">Laden...</div></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, setDoc, collection, getDocs, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDha05hLJuL1O-4cjcCOdutdQmbUPXGN4Q",
+  authDomain: "urenregistratie-416e5.firebaseapp.com",
+  projectId: "urenregistratie-416e5",
+  storageBucket: "urenregistratie-416e5.firebasestorage.app",
+  messagingSenderId: "324133291974",
+  appId: "1:324133291974:web:e185a51b03a86e15ced4c7"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let allNotes = [];
+
+async function loadNotes() {
+  const snap = await getDocs(query(collection(db, 'persoonlijke_notities'), orderBy('datum', 'desc')));
+  allNotes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+window.addNote = async function() {
+  const tekst = val('n-tekst').trim();
+  const categorie = val('n-categorie').trim();
+  const err = document.getElementById('n-err');
+  if (!tekst) { err.textContent = 'Vul een notitie in'; err.style.display = 'block'; return; }
+  err.style.display = 'none';
+  const datum = new Date().toISOString();
+  await setDoc(doc(collection(db, 'persoonlijke_notities')), { tekst, categorie, datum });
+  setVal('n-tekst', ''); setVal('n-categorie', '');
+  await loadNotes();
+  renderNotes();
+};
+
+window.deleteNote = async function(id) {
+  if (!confirm('Deze notitie verwijderen?')) return;
+  await deleteDoc(doc(db, 'persoonlijke_notities', id));
+  await loadNotes();
+  renderNotes();
+};
+
+window.renderNotes = function() {
+  // Categorie filter vullen
+  const cats = [...new Set(allNotes.map(n => n.categorie).filter(c => c))].sort();
+  const catSel = document.getElementById('filter-cat');
+  const curCat = catSel.value;
+  catSel.innerHTML = '<option value="">Alle categorieën</option>' + cats.map(c => `<option ${c===curCat?'selected':''} value="${c}">${c}</option>`).join('');
+
+  const zoek = val('zoek').toLowerCase().trim();
+  const filtered = allNotes.filter(n => {
+    if (curCat && n.categorie !== curCat) return false;
+    if (zoek && !(n.tekst||'').toLowerCase().includes(zoek) && !(n.categorie||'').toLowerCase().includes(zoek)) return false;
+    return true;
+  });
+
+  const list = document.getElementById('notes-list');
+  if (!filtered.length) { list.innerHTML = '<div class="empty">Geen notities gevonden</div>'; return; }
+  list.innerHTML = filtered.map(n => `
+    <div class="note">
+      <div class="note-head">
+        <span class="note-date">${fmtDateTime(n.datum)}</span>
+        ${n.categorie ? `<span class="note-cat">${n.categorie}</span>` : ''}
+      </div>
+      <div class="note-text">${escapeHtml(n.tekst)}</div>
+      <div class="note-actions">
+        <button class="btn btn-secondary btn-sm" onclick="deleteNote('${n.id}')">🗑️ Verwijderen</button>
+      </div>
+    </div>`).join('');
+};
+
+function fmtDateTime(iso) {
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mi = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}-${mm}-${yy} · ${hh}:${mi}`;
+}
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+function val(id){ return document.getElementById(id).value; }
+function setVal(id,v){ document.getElementById(id).value = v; }
+
+(async function init(){
+  await loadNotes();
+  renderNotes();
+})();
+</script>
+</body>
+</html>
