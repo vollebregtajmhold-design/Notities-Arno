@@ -12,8 +12,8 @@
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   :root{
-    --bg:#0B141A;--surface:#2A6B52;--border:#0B141A;--text:#FFFFFF;
-    --muted:#D6EDDF;--accent:#6BC795;--accent-light:#1E5142;
+    --bg:#0B141A;--surface:#344C34;--border:#0B141A;--text:#FFFFFF;
+    --muted:#D6E0D6;--accent:#7FA87F;--accent-light:#26371F;
     --danger:#FFA07F;--radius:14px;--font:'Inter',system-ui,sans-serif;
     --field-bg:#1F2C34;--field-border:var(--surface);
   }
@@ -50,7 +50,7 @@
   .search-row{display:flex;gap:8px;margin-bottom:1rem}
   .search-row input{margin:0}
   .search-row select{margin:0;width:auto;flex-shrink:0}
-  .note{background:var(--surface);border:none;border-radius:var(--radius);padding:.5rem .8rem;margin-bottom:.3rem;position:relative;transition:transform .2s, opacity .2s;touch-action:pan-y}
+  .note{background:var(--surface);border:none;border-radius:var(--radius);padding:.3rem .8rem;margin-bottom:.15rem;position:relative;transition:transform .2s, opacity .2s;touch-action:pan-y}
   .note.swiping{transition:none}
   .note-head{display:flex;align-items:center;gap:8px;margin-bottom:2px;font-size:13px;color:var(--muted)}
   .note-cat{display:inline-block;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-light);border-radius:20px;padding:2px 9px;flex-shrink:0}
@@ -168,11 +168,13 @@ window.deleteNote = async function(id, skipConfirm) {
   renderNotes();
 };
 
+let firstRender = true;
 window.renderNotes = function() {
   // Categorie filter vullen
   const cats = [...new Set(allNotes.map(n => n.categorie).filter(c => c))].sort();
   const catSel = document.getElementById('filter-cat');
-  const curCat = catSel.value;
+  const curCat = firstRender ? '__geen__' : catSel.value;
+  firstRender = false;
   catSel.innerHTML = '<option value="">Alle categorieën</option><option value="__geen__"' + (curCat==='__geen__'?' selected':'') + '>Geen categorie</option>' + cats.map(c => `<option ${c===curCat?'selected':''} value="${c}">${c}</option>`).join('');
 
   const zoek = val('zoek').toLowerCase().trim();
@@ -349,7 +351,6 @@ document.getElementById('download-btn').onclick = () => {
 (async function init(){
   document.getElementById('n-tekst').focus();
   await loadNotes();
-  document.getElementById('filter-cat').value = '__geen__';
   renderNotes();
 })();
 </script>
