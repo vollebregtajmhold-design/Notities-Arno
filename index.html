@@ -12,34 +12,43 @@
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   :root{
-    --bg:#E4EEF7;--surface:#FFFFFF;--border:#A9C9E3;--text:#142433;
-    --muted:#4F7395;--accent:#1F5E8C;--accent-light:#C9E2F5;
-    --danger:#A6362A;--radius:10px;--font:'Inter',system-ui,sans-serif;
+    --bg:#0E1A1F;--surface:#16242B;--border:#2E3F47;--text:#F2F2F0;
+    --muted:#9AA7AC;--accent:#3A7CA5;--accent-light:#1F3A48;
+    --danger:#D85A30;--radius:14px;--font:'Inter',system-ui,sans-serif;
   }
-  body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:16px;line-height:1.5;min-height:100vh}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:18px;line-height:1.5;min-height:100vh}
   .wrap{max-width:520px;margin:0 auto;padding:1.25rem 1rem 4rem}
-  .logo{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.25rem}
-  .page-title{font-size:24px;font-weight:600;margin-bottom:1rem}
+  .logo{font-size:14px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.25rem}
+  .page-title{font-size:26px;font-weight:600;margin-bottom:1rem}
   .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem}
   label{display:block;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem;margin-top:.7rem}
   label:first-child{margin-top:0}
-  input,textarea,select{display:block;width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:15px;font-family:var(--font);outline:none}
-  textarea{resize:vertical;min-height:70px}
+  input,textarea,select{display:block;width:100%;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:18px;font-family:var(--font);outline:none}
+  textarea{resize:vertical;min-height:80px}
   input:focus,textarea:focus,select:focus{border-color:var(--accent)}
-  .btn{display:block;width:100%;padding:11px;border-radius:8px;font-size:15px;font-weight:600;font-family:var(--font);cursor:pointer;text-align:center;border:none;margin-top:.7rem}
-  .btn:active{transform:scale(.98)}
-  .btn-primary{background:var(--accent);color:#fff}
-  .btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text)}
-  .btn-sm{padding:5px 10px;font-size:13px;width:auto;display:inline-block;margin-top:0}
+  select{
+    appearance:none;-webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239AA7AC' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;
+  }
+  .row{display:flex;gap:10px;align-items:center;margin-top:.7rem}
+  .row select{margin:0;flex:1}
+  .save-btn{
+    flex-shrink:0;width:48px;height:48px;border:none;border-radius:10px;
+    background:var(--accent);color:#fff;font-size:22px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .save-btn:active{opacity:.85}
+  .btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer}
   .search-row{display:flex;gap:8px;margin-bottom:1rem}
   .search-row input{margin:0}
   .search-row select{margin:0;width:auto;flex-shrink:0}
   .note{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.85rem 1rem;margin-bottom:.6rem}
-  .note-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px}
-  .note-date{font-size:12px;color:var(--muted)}
-  .note-cat{display:inline-block;font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-light);border-radius:20px;padding:2px 9px;margin-left:6px}
-  .note-text{font-size:15px;white-space:pre-wrap;word-break:break-word}
-  .note-actions{display:flex;gap:6px;margin-top:8px}
+  .note-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--muted)}
+  .note-cat{display:inline-block;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-light);border-radius:20px;padding:2px 9px;flex-shrink:0}
+  .note-head .spacer{flex:1}
+  .icon-btn{border:none;background:transparent;color:var(--muted);font-size:18px;padding:2px 4px;line-height:1;cursor:pointer;flex-shrink:0}
+  .note-text{font-size:18px;white-space:pre-wrap;word-break:break-word}
   .empty{text-align:center;padding:3rem 0;color:var(--muted);font-size:15px}
   .loading{text-align:center;padding:2rem;color:var(--muted);font-size:14px}
   .error{font-size:13px;color:var(--danger);margin-top:.5rem}
@@ -53,10 +62,19 @@
   <div class="card">
     <label>Nieuwe notitie</label>
     <textarea id="n-tekst" placeholder="Schrijf hier je notitie..."></textarea>
-    <label>Categorie (optioneel)</label>
-    <input type="text" id="n-categorie" placeholder="bijv. Werk, Privé, Idee...">
+    <div class="row">
+      <select id="n-categorie">
+        <option value="">Categorie...</option>
+        <option>Werk</option>
+        <option>Privé</option>
+        <option>Idee</option>
+        <option>Boodschappen</option>
+        <option>Afspraak</option>
+        <option>Overig</option>
+      </select>
+      <button class="save-btn" id="save-btn" onclick="addNote()" aria-label="Opslaan">➤</button>
+    </div>
     <div id="n-err" class="error" style="display:none"></div>
-    <button class="btn btn-primary" onclick="addNote()">Opslaan</button>
   </div>
 
   <div class="search-row">
@@ -69,7 +87,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, setDoc, collection, getDocs, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, updateDoc, collection, getDocs, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDha05hLJuL1O-4cjcCOdutdQmbUPXGN4Q",
@@ -84,6 +102,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let allNotes = [];
+let editingId = null;
 
 async function loadNotes() {
   const snap = await getDocs(query(collection(db, 'persoonlijke_notities'), orderBy('datum', 'desc')));
@@ -96,11 +115,30 @@ window.addNote = async function() {
   const err = document.getElementById('n-err');
   if (!tekst) { err.textContent = 'Vul een notitie in'; err.style.display = 'block'; return; }
   err.style.display = 'none';
-  const datum = new Date().toISOString();
-  await setDoc(doc(collection(db, 'persoonlijke_notities')), { tekst, categorie, datum });
+
+  if (editingId) {
+    await updateDoc(doc(db, 'persoonlijke_notities', editingId), { tekst, categorie, datum: new Date().toISOString() });
+    editingId = null;
+    document.getElementById('save-btn').textContent = '➤';
+  } else {
+    const datum = new Date().toISOString();
+    await setDoc(doc(collection(db, 'persoonlijke_notities')), { tekst, categorie, datum });
+  }
+
   setVal('n-tekst', ''); setVal('n-categorie', '');
   await loadNotes();
   renderNotes();
+};
+
+window.editNote = function(id) {
+  const n = allNotes.find(n => n.id === id);
+  if (!n) return;
+  setVal('n-tekst', n.tekst);
+  setVal('n-categorie', n.categorie || '');
+  editingId = id;
+  document.getElementById('save-btn').textContent = '✓';
+  document.getElementById('n-tekst').focus();
+  window.scrollTo({top:0, behavior:'smooth'});
 };
 
 window.deleteNote = async function(id) {
@@ -129,13 +167,13 @@ window.renderNotes = function() {
   list.innerHTML = filtered.map(n => `
     <div class="note">
       <div class="note-head">
-        <span class="note-date">${fmtDateTime(n.datum)}</span>
+        <span>${fmtDateTime(n.datum)}</span>
         ${n.categorie ? `<span class="note-cat">${n.categorie}</span>` : ''}
+        <span class="spacer"></span>
+        <button class="icon-btn" onclick="editNote('${n.id}')" aria-label="Bewerken">✎</button>
+        <button class="icon-btn" onclick="deleteNote('${n.id}')" aria-label="Verwijderen">🗑</button>
       </div>
       <div class="note-text">${escapeHtml(n.tekst)}</div>
-      <div class="note-actions">
-        <button class="btn btn-secondary btn-sm" onclick="deleteNote('${n.id}')">🗑️ Verwijderen</button>
-      </div>
     </div>`).join('');
 };
 
