@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="nl" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -15,15 +15,22 @@
     --bg:#0B141A;--surface:#2A6B52;--border:#0B141A;--text:#FFFFFF;
     --muted:#D6EDDF;--accent:#6BC795;--accent-light:#1E5142;
     --danger:#FFA07F;--radius:14px;--font:'Inter',system-ui,sans-serif;
+    --field-bg:#1F2C34;--field-border:var(--surface);
+  }
+  [data-theme="light"]{
+    --bg:#F4F8F6;--surface:#DCF0E4;--border:#0B141A;--text:#1B2B23;
+    --muted:#5C7468;--accent:#2E8B57;--accent-light:#C5E8D4;
+    --danger:#C0452B;
+    --field-bg:#FFFFFF;--field-border:#BFD8CB;
   }
   body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:22px;line-height:1.5;min-height:100vh}
   .wrap{max-width:520px;margin:0 auto;padding:1.25rem 1rem 4rem}
   .logo{font-size:14px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.25rem}
   .page-title{font-size:26px;font-weight:600;margin-bottom:1rem}
-  .card{background:#1F2C34;border:2px solid #2A3942;border-radius:var(--radius);padding:1rem;margin-bottom:1rem}
+  .card{background:var(--field-bg);border:2px solid var(--field-border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem}
   label{display:block;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem;margin-top:.7rem}
   label:first-child{margin-top:0}
-  input,textarea,select{display:block;width:100%;padding:12px;border:2px solid var(--surface);border-radius:10px;background:#1F2C34;color:var(--text);font-size:24px;font-family:var(--font);outline:none}
+  input,textarea,select{display:block;width:100%;padding:12px;border:2px solid var(--field-border);border-radius:10px;background:var(--field-bg);color:var(--text);font-size:24px;font-family:var(--font);outline:none}
   textarea{resize:vertical;min-height:80px}
   input:focus,textarea:focus,select:focus{border-color:var(--accent)}
   select{
@@ -52,7 +59,10 @@
   .note-text a{color:#53BDEB;text-decoration:underline}
   .empty{text-align:center;padding:3rem 0;color:var(--muted);font-size:15px}
   .loading{text-align:center;padding:2rem;color:var(--muted);font-size:14px}
-  .error{font-size:13px;color:var(--danger);margin-top:.5rem}
+  .topbar{display:flex;justify-content:flex-end;gap:8px;margin-bottom:.75rem}
+  .topbar .icon-btn{font-size:22px;border:2px solid var(--field-border);border-radius:10px;width:44px;height:44px}
+  .pin-btn{transform:rotate(0deg)}
+  .pin-btn.pinned{color:var(--accent)}
 </style>
 </head>
 <body>
@@ -60,7 +70,7 @@
   <div class="card">
     <textarea id="n-tekst" placeholder="Schrijf hier je notitie..."></textarea>
     <div class="row">
-      <select id="n-categorie">
+      <select id="n-categorie" style="flex:1.4">
         <option value="">Categorie...</option>
         <option>Werk</option>
         <option>Privé</option>
@@ -69,6 +79,8 @@
         <option>Afspraak</option>
         <option>Overig</option>
       </select>
+      <button class="icon-btn" id="theme-btn" aria-label="Thema wisselen" style="font-size:22px;border:2px solid var(--field-border);border-radius:10px;width:48px;height:48px;flex-shrink:0">🌙</button>
+      <button class="icon-btn" id="download-btn" aria-label="Downloaden" style="font-size:22px;border:2px solid var(--field-border);border-radius:10px;width:48px;height:48px;flex-shrink:0">⬇</button>
       <button class="save-btn" id="save-btn" onclick="addNote()" aria-label="Opslaan">➤</button>
     </div>
     <div id="n-err" class="error" style="display:none"></div>
@@ -138,6 +150,14 @@ window.editNote = function(id) {
   window.scrollTo({top:0, behavior:'smooth'});
 };
 
+window.togglePin = async function(id) {
+  const n = allNotes.find(n => n.id === id);
+  if (!n) return;
+  await updateDoc(doc(db, 'persoonlijke_notities', id), { vast: !n.vast });
+  await loadNotes();
+  renderNotes();
+};
+
 window.deleteNote = async function(id) {
   if (!confirm('Deze notitie verwijderen?')) return;
   await deleteDoc(doc(db, 'persoonlijke_notities', id));
@@ -160,6 +180,8 @@ window.renderNotes = function() {
     return true;
   });
 
+  filtered.sort((a,b) => (b.vast?1:0) - (a.vast?1:0));
+
   const list = document.getElementById('notes-list');
   if (!filtered.length) { list.innerHTML = '<div class="empty">Geen notities gevonden</div>'; return; }
   list.innerHTML = filtered.map(n => `
@@ -168,6 +190,7 @@ window.renderNotes = function() {
         <span>${fmtDateTime(n.datum)}</span>
         ${n.categorie ? `<span class="note-cat">${n.categorie}</span>` : ''}
         <span class="spacer"></span>
+        <button class="icon-btn pin-btn ${n.vast?'pinned':''}" onclick="togglePin('${n.id}')" aria-label="Vastpinnen">📌</button>
         <button class="icon-btn" onclick="editNote('${n.id}')" aria-label="Bewerken">✎</button>
         <button class="icon-btn" onclick="deleteNote('${n.id}')" aria-label="Verwijderen">🗑</button>
       </div>
@@ -198,6 +221,37 @@ function linkify(s) {
 
 function val(id){ return document.getElementById(id).value; }
 function setVal(id,v){ document.getElementById(id).value = v; }
+
+document.getElementById('theme-btn').onclick = () => {
+  const html = document.documentElement;
+  const isLight = html.getAttribute('data-theme') === 'light';
+  html.setAttribute('data-theme', isLight ? 'dark' : 'light');
+  document.getElementById('theme-btn').textContent = isLight ? '🌙' : '☀️';
+  localStorage.setItem('notitiesTheme', isLight ? 'dark' : 'light');
+};
+
+(function initTheme(){
+  const saved = localStorage.getItem('notitiesTheme');
+  if (saved) {
+    document.documentElement.setAttribute('data-theme', saved);
+    document.getElementById('theme-btn').textContent = saved === 'light' ? '☀️' : '🌙';
+  }
+})();
+
+document.getElementById('download-btn').onclick = () => {
+  const tekst = allNotes
+    .slice()
+    .sort((a,b) => new Date(b.datum) - new Date(a.datum))
+    .map(n => `${fmtDateTime(n.datum)}${n.categorie ? ' · ' + n.categorie : ''}\n${n.tekst}`)
+    .join('\n\n');
+  const blob = new Blob([tekst], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'notities.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
 (async function init(){
   await loadNotes();
