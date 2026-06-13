@@ -238,9 +238,14 @@ function attachSwipe(){
       dragging = false;
       el.classList.remove('swiping');
       if (horizontal && dx < -90) {
-        el.style.transform = 'translateX(-100%)';
-        el.style.opacity = '0';
-        setTimeout(() => deleteNote(id, true), 180);
+        if (confirm('Deze notitie verwijderen?')) {
+          el.style.transform = 'translateX(-100%)';
+          el.style.opacity = '0';
+          setTimeout(() => deleteNote(id, true), 180);
+        } else {
+          el.style.transform = '';
+          el.style.opacity = '';
+        }
       } else if (horizontal && dx > 90) {
         el.style.transform = '';
         editNote(id);
