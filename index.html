@@ -50,7 +50,8 @@
   .search-row{display:flex;gap:8px;margin-bottom:1rem}
   .search-row input{margin:0}
   .search-row select{margin:0;width:auto;flex-shrink:0}
-  .note{background:var(--surface);border:none;border-radius:var(--radius);padding:.85rem 1rem;margin-bottom:.6rem}
+  .note{background:var(--surface);border:none;border-radius:var(--radius);padding:.85rem 1rem;margin-bottom:.6rem;position:relative;transition:transform .2s, opacity .2s;touch-action:pan-y}
+  .note.swiping{transition:none}
   .note-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--muted)}
   .note-cat{display:inline-block;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-light);border-radius:20px;padding:2px 9px;flex-shrink:0}
   .note-head .spacer{flex:1}
@@ -158,8 +159,8 @@ window.togglePin = async function(id) {
   renderNotes();
 };
 
-window.deleteNote = async function(id) {
-  if (!confirm('Deze notitie verwijderen?')) return;
+window.deleteNote = async function(id, skipConfirm) {
+  if (!skipConfirm && !confirm('Deze notitie verwijderen?')) return;
   await deleteDoc(doc(db, 'persoonlijke_notities', id));
   await loadNotes();
   renderNotes();
@@ -185,7 +186,7 @@ window.renderNotes = function() {
   const list = document.getElementById('notes-list');
   if (!filtered.length) { list.innerHTML = '<div class="empty">Geen notities gevonden</div>'; return; }
   list.innerHTML = filtered.map(n => `
-    <div class="note">
+    <div class="note" data-id="${n.id}">
       <div class="note-head">
         <span>${fmtDateTime(n.datum)}</span>
         ${n.categorie ? `<span class="note-cat">${n.categorie}</span>` : ''}
@@ -196,7 +197,55 @@ window.renderNotes = function() {
       </div>
       <div class="note-text">${linkify(n.tekst)}</div>
     </div>`).join('');
+
+  attachSwipe();
 };
+
+function attachSwipe(){
+  document.querySelectorAll('.note').forEach(el => {
+    let startX = 0, startY = 0, dx = 0, dragging = false, decided = false, horizontal = false;
+    const id = el.dataset.id;
+
+    el.addEventListener('touchstart', e => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      dx = 0; dragging = true; decided = false; horizontal = false;
+      el.classList.add('swiping');
+    }, {passive:true});
+
+    el.addEventListener('touchmove', e => {
+      if (!dragging) return;
+      const x = e.touches[0].clientX;
+      const y = e.touches[0].clientY;
+      dx = x - startX;
+      const dy = y - startY;
+      if (!decided) {
+        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+          horizontal = Math.abs(dx) > Math.abs(dy);
+          decided = true;
+        }
+      }
+      if (horizontal && dx < 0) {
+        el.style.transform = `translateX(${dx}px)`;
+        el.style.opacity = String(Math.max(0.2, 1 + dx/200));
+      }
+    }, {passive:true});
+
+    el.addEventListener('touchend', () => {
+      if (!dragging) return;
+      dragging = false;
+      el.classList.remove('swiping');
+      if (horizontal && dx < -90) {
+        el.style.transform = 'translateX(-100%)';
+        el.style.opacity = '0';
+        setTimeout(() => deleteNote(id, true), 180);
+      } else {
+        el.style.transform = '';
+        el.style.opacity = '';
+      }
+    });
+  });
+}
 
 function fmtDateTime(iso) {
   const d = new Date(iso);
@@ -254,6 +303,7 @@ document.getElementById('download-btn').onclick = () => {
 };
 
 (async function init(){
+  document.getElementById('n-tekst').focus();
   await loadNotes();
   renderNotes();
 })();
