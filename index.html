@@ -60,6 +60,8 @@
   .note-text a{color:#53BDEB;text-decoration:underline}
   .empty{text-align:center;padding:3rem 0;color:var(--muted);font-size:15px}
   .loading{text-align:center;padding:2rem;color:var(--muted);font-size:14px}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1F2C34;color:#fff;padding:12px 18px;border-radius:10px;display:flex;align-items:center;gap:14px;font-size:16px;box-shadow:0 4px 12px rgba(0,0,0,.4);z-index:50}
+  .toast button{background:none;border:none;color:#53BDEB;font-size:16px;font-weight:600;cursor:pointer}
   .topbar{display:flex;justify-content:flex-end;gap:8px;margin-bottom:.75rem}
   .topbar .icon-btn{font-size:22px;border:2px solid var(--field-border);border-radius:10px;width:44px;height:44px}
   .pin-btn{transform:rotate(0deg);color:var(--text)}
@@ -201,7 +203,33 @@ window.renderNotes = function() {
   attachSwipe();
 };
 
-function attachSwipe(){
+function removeWithUndo(id, note){
+  allNotes = allNotes.filter(n => n.id !== id);
+  renderNotes();
+
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = 'Notitie verwijderd <button>Ongedaan maken</button>';
+  document.body.appendChild(toast);
+
+  let undone = false;
+  const timer = setTimeout(async () => {
+    if (!undone) {
+      await deleteDoc(doc(db, 'persoonlijke_notities', id));
+      await loadNotes();
+      renderNotes();
+    }
+    toast.remove();
+  }, 3000);
+
+  toast.querySelector('button').onclick = () => {
+    undone = true;
+    clearTimeout(timer);
+    toast.remove();
+    allNotes.unshift(note);
+    renderNotes();
+  };
+}
   document.querySelectorAll('.note').forEach(el => {
     let startX = 0, startY = 0, dx = 0, dragging = false, decided = false, horizontal = false;
     const id = el.dataset.id;
@@ -238,14 +266,10 @@ function attachSwipe(){
       dragging = false;
       el.classList.remove('swiping');
       if (horizontal && dx < -90) {
-        if (confirm('Deze notitie verwijderen?')) {
-          el.style.transform = 'translateX(-100%)';
-          el.style.opacity = '0';
-          setTimeout(() => deleteNote(id, true), 180);
-        } else {
-          el.style.transform = '';
-          el.style.opacity = '';
-        }
+        el.style.transform = 'translateX(-100%)';
+        el.style.opacity = '0';
+        const note = allNotes.find(n => n.id === id);
+        setTimeout(() => removeWithUndo(id, note), 180);
       } else if (horizontal && dx > 90) {
         el.style.transform = '';
         editNote(id);
