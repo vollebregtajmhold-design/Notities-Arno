@@ -54,7 +54,7 @@
   .note-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--muted)}
   .note-cat{display:inline-block;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-light);border-radius:20px;padding:2px 9px;flex-shrink:0}
   .note-head .spacer{flex:1}
-  .icon-btn{border:none;background:transparent;color:var(--muted);font-size:18px;padding:2px 4px;line-height:1;cursor:pointer;flex-shrink:0}
+  .icon-btn{border:none;background:transparent;color:var(--muted);font-size:18px;padding:2px 4px;line-height:1;cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center}
   .note-text{font-size:22px;white-space:pre-wrap;word-break:break-word}
   .note-text a{color:#53BDEB;text-decoration:underline}
   .empty{text-align:center;padding:3rem 0;color:var(--muted);font-size:15px}
@@ -190,7 +190,7 @@ window.renderNotes = function() {
         <span>${fmtDateTime(n.datum)}</span>
         ${n.categorie ? `<span class="note-cat">${n.categorie}</span>` : ''}
         <span class="spacer"></span>
-        <button class="icon-btn pin-btn ${n.vast?'pinned':''}" onclick="togglePin('${n.id}')" aria-label="Vastpinnen">📌</button>
+        <button class="icon-btn pin-btn ${n.vast?'pinned':''}" onclick="togglePin('${n.id}')" aria-label="Vastpinnen"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
         <button class="icon-btn" onclick="editNote('${n.id}')" aria-label="Bewerken">✎</button>
         <button class="icon-btn" onclick="deleteNote('${n.id}')" aria-label="Verwijderen">🗑</button>
       </div>
