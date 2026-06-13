@@ -12,8 +12,8 @@
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   :root{
-    --bg:#0B141A;--surface:#2E7D5B;--border:#0B141A;--text:#FFFFFF;
-    --muted:#E0F2E9;--accent:#5FBF8A;--accent-light:#1F4A38;
+    --bg:#0B141A;--surface:#1F5C4A;--border:#0B141A;--text:#FFFFFF;
+    --muted:#CFE9DD;--accent:#5FBF8A;--accent-light:#16453A;
     --danger:#FFA07F;--radius:14px;--font:'Inter',system-ui,sans-serif;
   }
   body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:22px;line-height:1.5;min-height:100vh}
@@ -49,6 +49,7 @@
   .note-head .spacer{flex:1}
   .icon-btn{border:none;background:transparent;color:var(--muted);font-size:18px;padding:2px 4px;line-height:1;cursor:pointer;flex-shrink:0}
   .note-text{font-size:22px;white-space:pre-wrap;word-break:break-word}
+  .note-text a{color:#53BDEB;text-decoration:underline}
   .empty{text-align:center;padding:3rem 0;color:var(--muted);font-size:15px}
   .loading{text-align:center;padding:2rem;color:var(--muted);font-size:14px}
   .error{font-size:13px;color:var(--danger);margin-top:.5rem}
@@ -173,7 +174,7 @@ window.renderNotes = function() {
         <button class="icon-btn" onclick="editNote('${n.id}')" aria-label="Bewerken">✎</button>
         <button class="icon-btn" onclick="deleteNote('${n.id}')" aria-label="Verwijderen">🗑</button>
       </div>
-      <div class="note-text">${escapeHtml(n.tekst)}</div>
+      <div class="note-text">${linkify(n.tekst)}</div>
     </div>`).join('');
 };
 
@@ -191,6 +192,11 @@ function escapeHtml(s) {
   const div = document.createElement('div');
   div.textContent = s;
   return div.innerHTML;
+}
+
+function linkify(s) {
+  const escaped = escapeHtml(s);
+  return escaped.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
 }
 
 function val(id){ return document.getElementById(id).value; }
