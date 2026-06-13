@@ -228,6 +228,8 @@ function attachSwipe(){
       if (horizontal && dx < 0) {
         el.style.transform = `translateX(${dx}px)`;
         el.style.opacity = String(Math.max(0.2, 1 + dx/200));
+      } else if (horizontal && dx > 0) {
+        el.style.transform = `translateX(${dx}px)`;
       }
     }, {passive:true});
 
@@ -239,6 +241,9 @@ function attachSwipe(){
         el.style.transform = 'translateX(-100%)';
         el.style.opacity = '0';
         setTimeout(() => deleteNote(id, true), 180);
+      } else if (horizontal && dx > 90) {
+        el.style.transform = '';
+        editNote(id);
       } else {
         el.style.transform = '';
         el.style.opacity = '';
