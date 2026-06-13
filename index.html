@@ -230,6 +230,7 @@ function removeWithUndo(id, note){
     renderNotes();
   };
 }
+function attachSwipe(){
   document.querySelectorAll('.note').forEach(el => {
     let startX = 0, startY = 0, dx = 0, dragging = false, decided = false, horizontal = false;
     const id = el.dataset.id;
