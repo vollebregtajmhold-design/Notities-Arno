@@ -150,11 +150,12 @@ window.renderNotes = function() {
   const cats = [...new Set(allNotes.map(n => n.categorie).filter(c => c))].sort();
   const catSel = document.getElementById('filter-cat');
   const curCat = catSel.value;
-  catSel.innerHTML = '<option value="">Alle categorieën</option>' + cats.map(c => `<option ${c===curCat?'selected':''} value="${c}">${c}</option>`).join('');
+  catSel.innerHTML = '<option value="">Alle categorieën</option><option value="__geen__">Geen categorie</option>' + cats.map(c => `<option ${c===curCat?'selected':''} value="${c}">${c}</option>`).join('');
 
   const zoek = val('zoek').toLowerCase().trim();
   const filtered = allNotes.filter(n => {
-    if (curCat && n.categorie !== curCat) return false;
+    if (curCat === '__geen__' && n.categorie) return false;
+    if (curCat && curCat !== '__geen__' && n.categorie !== curCat) return false;
     if (zoek && !(n.tekst||'').toLowerCase().includes(zoek) && !(n.categorie||'').toLowerCase().includes(zoek)) return false;
     return true;
   });
