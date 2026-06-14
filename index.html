@@ -81,8 +81,6 @@
         <option>Werk</option>
         <option>Privé</option>
         <option>Idee</option>
-        <option>Boodschappen</option>
-        <option>Afspraak</option>
         <option value="__nieuw__">+ Eigen categorie...</option>
       </select>
       <input type="text" id="n-categorie-nieuw" placeholder="Naam categorie" style="display:none;flex:1.4">
@@ -122,7 +120,7 @@ const db = getFirestore(app);
 let allNotes = [];
 let editingId = null;
 
-const DEFAULT_CATS = ['Werk','Privé','Idee','Boodschappen','Afspraak'];
+const DEFAULT_CATS = ['Werk','Privé','Idee'];
 
 function getCustomCategories(){
   try{ return JSON.parse(localStorage.getItem('customCategories')) || []; }
