@@ -52,6 +52,9 @@
   .search-row select{margin:0;width:auto;flex-shrink:0}
   .note{background:var(--surface);border:none;border-radius:var(--radius);padding:.2rem .8rem;margin-bottom:2px;position:relative;transition:transform .2s, opacity .2s;touch-action:pan-y}
   .note.swiping{transition:none}
+  .cat-chip{background:var(--field-bg);border:1px solid var(--field-border);border-radius:10px;padding:6px 12px;margin-bottom:4px;font-size:14px;color:var(--muted);position:relative;transition:transform .2s, opacity .2s;touch-action:pan-y}
+  .cat-chip.swiping{transition:none}
+  .empty-cats-label{font-size:12px;color:var(--muted);margin:.5rem 0 .25rem}
   .note-head{display:flex;align-items:center;gap:8px;margin-bottom:2px;font-size:13px;color:var(--muted)}
   .note-cat{display:inline-block;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-light);border-radius:20px;padding:2px 9px;flex-shrink:0}
   .note-head .spacer{flex:1}
@@ -73,15 +76,16 @@
   <div class="card">
     <textarea id="n-tekst" placeholder="Schrijf hier je notitie..."></textarea>
     <div class="row">
-      <select id="n-categorie" style="flex:1.4">
+      <select id="n-categorie" style="flex:1.4" onchange="onCategorySelect()">
         <option value="">Categorie...</option>
         <option>Werk</option>
         <option>Privé</option>
         <option>Idee</option>
         <option>Boodschappen</option>
         <option>Afspraak</option>
-        <option>Overig</option>
+        <option value="__nieuw__">+ Eigen categorie...</option>
       </select>
+      <input type="text" id="n-categorie-nieuw" placeholder="Naam categorie" style="display:none;flex:1.4">
       <button class="icon-btn" id="theme-btn" aria-label="Thema wisselen" style="font-size:22px;border:2px solid var(--field-border);border-radius:10px;width:48px;height:48px;flex-shrink:0">🌙</button>
       <button class="icon-btn" id="download-btn" aria-label="Downloaden" style="font-size:22px;border:2px solid var(--field-border);border-radius:10px;width:48px;height:48px;flex-shrink:0">⬇</button>
       <button class="save-btn" id="save-btn" onclick="addNote()" aria-label="Opslaan">➤</button>
@@ -93,6 +97,8 @@
     <input type="text" id="zoek" placeholder="Zoeken..." oninput="renderNotes(); clearSearchSoon()">
     <select id="filter-cat" onchange="renderNotes()"><option value="">Alle categorieën</option></select>
   </div>
+
+  <div id="empty-cats"></div>
 
   <div id="notes-list"><div class="loading">Laden...</div></div>
 </div>
@@ -116,6 +122,117 @@ const db = getFirestore(app);
 let allNotes = [];
 let editingId = null;
 
+const DEFAULT_CATS = ['Werk','Privé','Idee','Boodschappen','Afspraak'];
+
+function getCustomCategories(){
+  try{ return JSON.parse(localStorage.getItem('customCategories')) || []; }
+  catch(e){ return []; }
+}
+function saveCustomCategories(arr){
+  localStorage.setItem('customCategories', JSON.stringify(arr));
+}
+function getAllCategories(){
+  const custom = getCustomCategories();
+  const used = [...new Set(allNotes.map(n=>n.categorie).filter(c=>c))];
+  const set = new Set([...DEFAULT_CATS, ...custom, ...used]);
+  return [...set].sort((a,b) => {
+    const ai = DEFAULT_CATS.indexOf(a), bi = DEFAULT_CATS.indexOf(b);
+    if (ai!==-1 && bi!==-1) return ai-bi;
+    if (ai!==-1) return -1;
+    if (bi!==-1) return 1;
+    return a.localeCompare(b);
+  });
+}
+function buildCategoryOptions(selected){
+  let html = '<option value="">Categorie...</option>';
+  getAllCategories().forEach(c => html += `<option ${c===selected?'selected':''}>${c}</option>`);
+  html += '<option value="__nieuw__">+ Eigen categorie...</option>';
+  return html;
+}
+
+window.onCategorySelect = function(){
+  const sel = document.getElementById('n-categorie');
+  if (sel.value === '__nieuw__') {
+    const inp = document.getElementById('n-categorie-nieuw');
+    sel.style.display = 'none';
+    inp.style.display = '';
+    inp.value = '';
+    inp.focus();
+  }
+};
+
+function commitNewCategory(){
+  const inp = document.getElementById('n-categorie-nieuw');
+  const sel = document.getElementById('n-categorie');
+  if (inp.style.display === 'none') return;
+  const name = inp.value.trim();
+  inp.style.display = 'none';
+  sel.style.display = '';
+  if (name) {
+    const custom = getCustomCategories();
+    if (!custom.includes(name) && !DEFAULT_CATS.includes(name)) {
+      custom.push(name);
+      saveCustomCategories(custom);
+    }
+    sel.innerHTML = buildCategoryOptions(name);
+    sel.value = name;
+  } else {
+    sel.innerHTML = buildCategoryOptions('');
+    sel.value = '';
+  }
+  renderEmptyCategories();
+}
+
+function renderEmptyCategories(){
+  const used = new Set(allNotes.map(n=>n.categorie).filter(c=>c));
+  const custom = getCustomCategories();
+  const empty = custom.filter(c => !used.has(c));
+  const container = document.getElementById('empty-cats');
+  if (!empty.length) { container.innerHTML = ''; return; }
+  container.innerHTML = '<div class="empty-cats-label">Lege categorieën (swipe naar links om te verwijderen)</div>' +
+    empty.map(c => `<div class="cat-chip" data-cat="${c}">${c}</div>`).join('');
+  attachCatSwipe();
+}
+
+function attachCatSwipe(){
+  document.querySelectorAll('.cat-chip').forEach(el => {
+    let startX=0, startY=0, dx=0, dragging=false, decided=false, horizontal=false;
+    const cat = el.dataset.cat;
+    el.addEventListener('touchstart', e=>{
+      startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+      dx=0; dragging=true; decided=false; horizontal=false;
+      el.classList.add('swiping');
+    }, {passive:true});
+    el.addEventListener('touchmove', e=>{
+      if(!dragging) return;
+      const x=e.touches[0].clientX, y=e.touches[0].clientY;
+      dx = x-startX; const dy=y-startY;
+      if(!decided){ if(Math.abs(dx)>8||Math.abs(dy)>8){ horizontal=Math.abs(dx)>Math.abs(dy); decided=true; } }
+      if(horizontal && dx<0){ el.style.transform=`translateX(${dx}px)`; el.style.opacity=String(Math.max(0.2,1+dx/200)); }
+    }, {passive:true});
+    el.addEventListener('touchend', ()=>{
+      if(!dragging) return;
+      dragging=false; el.classList.remove('swiping');
+      if(horizontal && dx<-60){
+        el.style.transform='translateX(-100%)'; el.style.opacity='0';
+        setTimeout(()=>{
+          saveCustomCategories(getCustomCategories().filter(c=>c!==cat));
+          const sel = document.getElementById('n-categorie');
+          if (sel.value === cat) sel.innerHTML = buildCategoryOptions('');
+          renderEmptyCategories();
+        }, 180);
+      } else {
+        el.style.transform=''; el.style.opacity='';
+      }
+    });
+  });
+}
+
+document.getElementById('n-categorie-nieuw').addEventListener('keydown', e=>{
+  if (e.key === 'Enter') { e.preventDefault(); commitNewCategory(); }
+});
+document.getElementById('n-categorie-nieuw').addEventListener('blur', commitNewCategory);
+
 async function loadNotes() {
   const snap = await getDocs(query(collection(db, 'persoonlijke_notities'), orderBy('datum', 'desc')));
   allNotes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -137,7 +254,8 @@ window.addNote = async function() {
     await setDoc(doc(collection(db, 'persoonlijke_notities')), { tekst, categorie, datum });
   }
 
-  setVal('n-tekst', ''); setVal('n-categorie', '');
+  setVal('n-tekst', '');
+  document.getElementById('n-categorie').innerHTML = buildCategoryOptions('');
   await loadNotes();
   renderNotes();
 };
@@ -146,7 +264,8 @@ window.editNote = function(id) {
   const n = allNotes.find(n => n.id === id);
   if (!n) return;
   setVal('n-tekst', n.tekst);
-  setVal('n-categorie', n.categorie || '');
+  const sel = document.getElementById('n-categorie');
+  sel.innerHTML = buildCategoryOptions(n.categorie || '');
   editingId = id;
   document.getElementById('save-btn').textContent = '✓';
   document.getElementById('n-tekst').focus();
@@ -188,7 +307,11 @@ window.renderNotes = function() {
   filtered.sort((a,b) => (b.vast?1:0) - (a.vast?1:0));
 
   const list = document.getElementById('notes-list');
-  if (!filtered.length) { list.innerHTML = '<div class="empty">Geen notities gevonden</div>'; return; }
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty">Geen notities gevonden</div>';
+    renderEmptyCategories();
+    return;
+  }
   list.innerHTML = filtered.map(n => `
     <div class="note" data-id="${n.id}">
       <div class="note-head">
@@ -203,6 +326,7 @@ window.renderNotes = function() {
     </div>`).join('');
 
   attachSwipe();
+  renderEmptyCategories();
 };
 
 function removeWithUndo(id, note){
@@ -350,6 +474,7 @@ document.getElementById('download-btn').onclick = () => {
 
 (async function init(){
   document.getElementById('n-tekst').focus();
+  document.getElementById('n-categorie').innerHTML = buildCategoryOptions('');
   await loadNotes();
   renderNotes();
 })();
