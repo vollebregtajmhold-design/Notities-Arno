@@ -94,7 +94,7 @@
   </div>
 
   <div class="search-row">
-    <input type="text" id="zoek" placeholder="Zoeken..." oninput="renderNotes(); clearSearchSoon()">
+    <input type="text" id="zoek" placeholder="Zoeken..." oninput="renderNotes()" onblur="clearSearchOnBlur()">
     <select id="filter-cat" onchange="renderNotes()"><option value="">Alle categorieën</option></select>
   </div>
 
@@ -260,6 +260,18 @@ window.addNote = async function() {
   renderNotes();
 };
 
+window.shareNote = async function(id) {
+  const n = allNotes.find(n => n.id === id);
+  if (!n) return;
+  const tekst = n.tekst;
+  if (navigator.share) {
+    try { await navigator.share({ text: tekst }); } catch(e) {}
+  } else {
+    await navigator.clipboard.writeText(tekst);
+    alert('Notitie gekopieerd');
+  }
+};
+
 window.editNote = function(id) {
   const n = allNotes.find(n => n.id === id);
   if (!n) return;
@@ -298,9 +310,12 @@ window.renderNotes = function() {
 
   const zoek = val('zoek').toLowerCase().trim();
   const filtered = allNotes.filter(n => {
-    if (curCat === '__geen__' && n.categorie) return false;
-    if (curCat && curCat !== '__geen__' && n.categorie !== curCat) return false;
-    if (zoek && !(n.tekst||'').toLowerCase().includes(zoek) && !(n.categorie||'').toLowerCase().includes(zoek)) return false;
+    if (!zoek) {
+      if (curCat === '__geen__' && n.categorie) return false;
+      if (curCat && curCat !== '__geen__' && n.categorie !== curCat) return false;
+    } else {
+      if (!(n.tekst||'').toLowerCase().includes(zoek) && !(n.categorie||'').toLowerCase().includes(zoek)) return false;
+    }
     return true;
   });
 
@@ -319,6 +334,7 @@ window.renderNotes = function() {
         ${n.categorie ? `<span class="note-cat">${n.categorie}</span>` : ''}
         <span class="spacer"></span>
         <button class="icon-btn pin-btn ${n.vast?'pinned':''}" onclick="togglePin('${n.id}')" aria-label="Vastpinnen"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
+        <button class="icon-btn" onclick="shareNote('${n.id}')" aria-label="Delen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg></button>
         <button class="icon-btn" onclick="editNote('${n.id}')" aria-label="Bewerken">✎</button>
         <button class="icon-btn" onclick="deleteNote('${n.id}')" aria-label="Verwijderen">🗑</button>
       </div>
@@ -356,13 +372,9 @@ function removeWithUndo(id, note){
     renderNotes();
   };
 }
-let searchClearTimer = null;
-window.clearSearchSoon = function(){
-  clearTimeout(searchClearTimer);
-  searchClearTimer = setTimeout(() => {
-    const zoekEl = document.getElementById('zoek');
-    if (zoekEl.value) { zoekEl.value = ''; renderNotes(); }
-  }, 3000);
+window.clearSearchOnBlur = function(){
+  const zoekEl = document.getElementById('zoek');
+  if (zoekEl.value) { zoekEl.value = ''; renderNotes(); }
 };
 
 function attachSwipe(){
