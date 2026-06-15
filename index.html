@@ -60,6 +60,8 @@
   .note-reminder{display:inline-block;font-size:12px;font-weight:600;color:#FFD166;background:#4A3B1A;border-radius:20px;padding:2px 9px;flex-shrink:0}
   .reminder-btn{color:var(--text)}
   .reminder-btn.set{color:#FFD166}
+  .reminder-edit{display:flex;gap:8px;align-items:center;margin-top:6px}
+  .reminder-edit input{flex:1;font-size:16px;padding:8px}
   .note-head .spacer{flex:1}
   .icon-btn{border:none;background:transparent;color:var(--muted);font-size:18px;padding:2px 4px;line-height:1;cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center}
   .note-text{font-size:22px;white-space:pre-wrap;word-break:break-word}
@@ -273,19 +275,40 @@ window.shareNote = async function(id) {
   }
 };
 
+let reminderEditId = null;
+
 window.toggleReminder = function(id){
-  const el = document.getElementById('rem-'+id);
-  if (el.showPicker) { try { el.showPicker(); return; } catch(e){} }
-  el.click();
+  reminderEditId = (reminderEditId === id) ? null : id;
+  renderNotes();
+  if (reminderEditId === id) {
+    setTimeout(() => { const el = document.getElementById('rem-'+id); if (el) el.focus(); }, 50);
+  }
 };
 
-window.setReminder = async function(id, value){
+window.saveReminder = async function(id){
+  const el = document.getElementById('rem-'+id);
+  const value = el ? el.value : '';
+  reminderEditId = null;
   const iso = value ? new Date(value).toISOString() : null;
   await updateDoc(doc(db, 'persoonlijke_notities', id), { herinnering: iso });
   await loadNotes();
   renderNotes();
-  const note = allNotes.find(n => n.id === id);
-  if (iso) scheduleReminder(note);
+  if (iso) {
+    let shown = [];
+    try { shown = JSON.parse(localStorage.getItem('shownReminders')) || []; } catch(e){}
+    if (shown.includes(id)) {
+      shown = shown.filter(x => x !== id);
+      localStorage.setItem('shownReminders', JSON.stringify(shown));
+    }
+    scheduleReminder(allNotes.find(n => n.id === id));
+  }
+};
+
+window.clearReminder = async function(id){
+  reminderEditId = null;
+  await updateDoc(doc(db, 'persoonlijke_notities', id), { herinnering: null });
+  await loadNotes();
+  renderNotes();
 };
 
 function fmtReminder(iso){
@@ -306,8 +329,8 @@ async function ensureNotificationPermission(){
   if (!('Notification' in window)) return false;
   if (Notification.permission === 'granted') return true;
   if (Notification.permission === 'denied') return false;
-  const res = await Notification.requestPermission();
-  return res === 'granted';
+  try { return (await Notification.requestPermission()) === 'granted'; }
+  catch(e){ return false; }
 }
 
 async function scheduleReminder(note){
@@ -315,9 +338,9 @@ async function scheduleReminder(note){
   if (!('serviceWorker' in navigator)) return;
   const ts = new Date(note.herinnering).getTime();
   if (ts <= Date.now()) return;
-  const ok = await ensureNotificationPermission();
-  if (!ok) return;
   try {
+    const ok = await ensureNotificationPermission();
+    if (!ok) return;
     const reg = await navigator.serviceWorker.ready;
     if (typeof TimestampTrigger !== 'undefined') {
       await reg.showNotification('Notitie-herinnering', {
@@ -330,28 +353,20 @@ async function scheduleReminder(note){
   } catch(e) { /* niet ondersteund, negeren */ }
 }
 
-async function checkDueReminders(){
-  if (!('serviceWorker' in navigator)) return;
+function checkDueReminders(){
   let shown = [];
   try { shown = JSON.parse(localStorage.getItem('shownReminders')) || []; } catch(e){}
   const now = Date.now();
-  let changed = false;
-  for (const n of allNotes) {
-    if (n.herinnering && new Date(n.herinnering).getTime() <= now && !shown.includes(n.id)) {
-      const ok = await ensureNotificationPermission();
-      if (ok) {
-        try {
-          const reg = await navigator.serviceWorker.ready;
-          await reg.showNotification('Notitie-herinnering', { body: n.tekst, tag: 'reminder-'+n.id, icon: 'icon-192.png' });
-        } catch(e){}
-      }
-      shown.push(n.id);
-      changed = true;
-    } else if (n.herinnering && new Date(n.herinnering).getTime() > now) {
-      scheduleReminder(n);
-    }
+  const due = allNotes.filter(n => n.herinnering && new Date(n.herinnering).getTime() <= now && !shown.includes(n.id));
+  if (due.length) {
+    const msg = due.map(n => '⏰ ' + n.tekst).join('\n\n');
+    setTimeout(() => alert(msg), 300);
+    shown.push(...due.map(n => n.id));
+    localStorage.setItem('shownReminders', JSON.stringify(shown));
   }
-  if (changed) localStorage.setItem('shownReminders', JSON.stringify(shown));
+  allNotes.forEach(n => {
+    if (n.herinnering && new Date(n.herinnering).getTime() > now) scheduleReminder(n);
+  });
 }
 
 window.editNote = function(id) {
@@ -414,9 +429,7 @@ window.renderNotes = function() {
       <div class="note-head">
         <span>${fmtDateTime(n.datum)}</span>
         ${n.categorie ? `<span class="note-cat">${n.categorie}</span>` : ''}
-        ${n.herinnering ? `<span class="note-reminder">⏰ ${fmtReminder(n.herinnering)}</span>` : ''}
         <span class="spacer"></span>
-        <input type="datetime-local" id="rem-${n.id}" style="position:absolute;opacity:0;width:0;height:0;pointer-events:none" value="${n.herinnering ? toLocalInputValue(n.herinnering) : ''}" onchange="setReminder('${n.id}', this.value)">
         <button class="icon-btn reminder-btn ${n.herinnering?'set':''}" onclick="toggleReminder('${n.id}')" aria-label="Herinnering"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg></button>
         <button class="icon-btn pin-btn ${n.vast?'pinned':''}" onclick="togglePin('${n.id}')" aria-label="Vastpinnen"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
         <button class="icon-btn" onclick="shareNote('${n.id}')" aria-label="Delen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg></button>
@@ -424,6 +437,12 @@ window.renderNotes = function() {
         <button class="icon-btn" onclick="deleteNote('${n.id}')" aria-label="Verwijderen">🗑</button>
       </div>
       <div class="note-text">${linkify(n.tekst)}</div>
+      ${reminderEditId === n.id ? `
+      <div class="reminder-edit">
+        <input type="datetime-local" id="rem-${n.id}" value="${n.herinnering ? toLocalInputValue(n.herinnering) : ''}">
+        <button class="icon-btn" onclick="saveReminder('${n.id}')" aria-label="Opslaan">✓</button>
+        ${n.herinnering ? `<button class="icon-btn" onclick="clearReminder('${n.id}')" aria-label="Verwijderen">✕</button>` : ''}
+      </div>` : ''}
     </div>`).join('');
 
   attachSwipe();
